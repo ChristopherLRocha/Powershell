@@ -19,7 +19,7 @@
 #>
 
 
-# ===================== CONFIGURATION =====================
+# ===================== Variables =====================
 
 # Base OU to search (searches all sub-OUs unless excluded)
 $BaseOU = "OU=Group Policy Configured,DC=domain,DC=com"
