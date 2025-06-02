@@ -75,10 +75,10 @@ $CheckpointResults = $CheckpointResults | Where-Object { $_ }  # Remove nulls
 # ------------------------
 
 if ($CheckpointResults.Count -gt 0) {
-    $EmailSubject = "⚠️ Hyper-V Checkpoints or Errors Detected"
+    $EmailSubject = "Hyper-V Checkpoints or Errors Detected"
     $EmailBody = "The following VMs have checkpoints or errors occurred during scan:`n`n" + ($CheckpointResults -join "`n")
 } else {
-    $EmailSubject = "✅ Hyper-V Checkpoint Report: None Found"
+    $EmailSubject = "Hyper-V Checkpoint Report: None Found"
     $EmailBody = "No Hyper-V checkpoints were found on any of the specified servers."
 }
 
