@@ -19,9 +19,9 @@
 
 #>
 
-# ------------------------
-# User-defined Variables
-# ------------------------
+
+# ---------------Variables---------
+
 
 # List of Hyper-V servers to check
 $HyperVServers = @("HyperV01", "HyperV02", "HyperV03")  # Replace with actual server names
@@ -40,6 +40,9 @@ $Creds = New-Object System.Management.Automation.PSCredential($SMTPUser, $SMTPPa
 # Logging
 $LogDirectory = "C:\Scripts\HyperVCheckpointLogs"
 if (!(Test-Path $LogDirectory)) { New-Item -Path $LogDirectory -ItemType Directory | Out-Null }
+
+#----------------------------------------
+
 
 # Remove logs older than 7 days
 Get-ChildItem -Path $LogDirectory -Filter "CheckpointReport_*.log" | Where-Object {

@@ -40,7 +40,7 @@ $userEmail    = 'SID'
 $folderName   = 'Inbox'
 $downloadPath = '\\location\'
 
-# ==== AUTH ====
+# Authenticate with Azure
 $body = @{
     client_id     = $clientId
     scope         = 'https://graph.microsoft.com/.default'
@@ -51,7 +51,7 @@ $tokenResponse = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonl
 $accessToken = $tokenResponse.access_token
 $headers = @{ Authorization = "Bearer $accessToken" }
 
-# ==== GET FOLDER ID ====
+# Get folder ID
 $folderUrl = "https://graph.microsoft.com/v1.0/users/$userEmail/mailFolders"
 $folders = Invoke-RestMethod -Uri $folderUrl -Headers $headers
 $folderId = ($folders.value | Where-Object { $_.displayName -eq $folderName }).id
@@ -61,7 +61,7 @@ if (-not $folderId) {
     exit
 }
 
-# ==== GET UNREAD EMAILS WITH ATTACHMENTS ====
+# Get unread emails with attachments
 $messagesUrl = "https://graph.microsoft.com/v1.0/users/$userEmail/mailFolders/$folderId/messages?`$filter=isRead eq false and hasAttachments eq true&`$top=25"
 $messages = Invoke-RestMethod -Uri $messagesUrl -Headers $headers
 
@@ -72,7 +72,7 @@ foreach ($message in $messages.value) {
 
     $fileSaved = $false
 
-    # ==== GET ATTACHMENTS ====
+    # get attachments
     $attachmentsUrl = "https://graph.microsoft.com/v1.0/users/$userEmail/messages/$messageId/attachments"
     $attachments = Invoke-RestMethod -Uri $attachmentsUrl -Headers $headers
 
@@ -108,7 +108,7 @@ foreach ($message in $messages.value) {
         }
     }
 
-    # ==== MARK EMAIL AS READ ONLY IF FILE SAVED ====
+    # Mark email as read if it had an attachment that was downloaded
     if ($fileSaved) {
         $markReadUrl = "https://graph.microsoft.com/v1.0/users/$userEmail/messages/$messageId"
         $body = @{ isRead = $true } | ConvertTo-Json

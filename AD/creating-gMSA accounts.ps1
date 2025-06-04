@@ -8,6 +8,7 @@ These are the computers permitted to retrieve the password from AD
 
 $gMSA_Name = 'VeeamOne_gMSA'
 $gMSA_FQDN = 'VeeamOne_gMSA.coilcraft.com'
+
 # Getting all the hostnames from the group
 $gMSA_HostNames = Get-ADGroupMember -Identity gMSA_VeeamOne_computers | Select-Object -ExpandProperty Name
 

@@ -19,9 +19,6 @@
 
 .OUTPUT
     A CSV file containing each computer's IP and its DNS server configuration.
-
-,AUTHOR
-    Christopher Rocha
 #>
 
 

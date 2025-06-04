@@ -19,7 +19,7 @@
 #>
 
 
-# ===================== Variables =====================
+# --------------Variables----------------
 
 # Base OU to search (searches all sub-OUs unless excluded)
 $BaseOU = "OU=Group Policy Configured,DC=domain,DC=com"
@@ -39,7 +39,7 @@ $From = "noreply@domain.com"
 $To = "you@domain.com"
 $Subject = "Users Without Smart Card Logon Enforced"
 
-# =========================================================
+# --------------------------------------------------
 
 # Smart card required flag
 $SMARTCARD_REQUIRED_FLAG = 0x40000
