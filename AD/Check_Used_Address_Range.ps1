@@ -16,40 +16,54 @@
 
 #>
 
-
 #------------Variables-----------------
 
-$domain_controller = (Get-ADDomainController -Discover -NextClosestSite).HostName
+$domain_controller = "dc01"
+
+# if your environment is setup properly...
+# $domain_controller = (Get-ADDomainController -Discover -NextClosestSite).HostName
 
 #--------------------------------------
 
-Invoke-Command -ComputerName $domain_controller -ScriptBlock {
+try {
+    Invoke-Command -ComputerName $domain_controller -ScriptBlock {
+        param($dc)
 
-    param($dc)
+        $ipresult = Get-DhcpServerv4Lease -ComputerName $dc -ScopeId 172.16.0.0 |
+            Where-Object { $_.IPAddress -like '*.127.*' } |
+            Format-Table IPAddress, HostName, AddressState, LeaseExpiryTime -AutoSize |
+            Out-String
 
-    $ipresult = Get-DhcpServerv4Lease -ComputerName $dc -ScopeId 172.16.0.0 |
-        Where-Object { $_.IPAddress -like '*.127.*' } |
-        Format-Table IPAddress, HostName, AddressState, LeaseExpiryTime -AutoSize |
-        Out-String
+        if (!$ipresult -or $ipresult.Trim() -eq "") {
+            Send-MailMessage -SmtpServer smtp.company.com `
+                             -To pc_admins@company.com `
+                             -From no_reply@company.com `
+                             -Subject '.127 IP Address Report from AMWS03' `
+                             -Body 'There are no .127 addresses in use.'
+        }
+        else {
+            $body = @"
+This is a list of the .127 addresses in use. Please let the PC Admins know if the address(es) are no longer needed.
 
-    if (-not $ipresult.Trim()) {
-        Send-MailMessage -SmtpServer smtp.company.com `
-            -To admin@company.com `
-            -From no_reply@company.com `
-            -Subject '.127 IP Address Report' `
-            -Body 'There are no .127 addresses in use'
-    }
-    else {
-        $body = @"
-This is a list of the .127 addresses in use. Please let the admin know if the address(es) are no longer needed.
-
-$ipresult
+$($ipresult)
 "@
-        Send-MailMessage -SmtpServer smtp.company.com `
-            -To pc_department@company.com `
-            -From no_reply@company.com `
-            -Subject '.127 IP Address Report' `
-            -Body $body
-    }
-
-} -ArgumentList $domain_controller
+            Send-MailMessage -SmtpServer smtp.company.com `
+                             -To pc_department@company.com `
+                             -From no_reply@company.com `
+                             -Subject '.127 IP Address Report' `
+                             -Body $body
+        }
+    } -ArgumentList $domain_controller
+}
+catch {
+    $errorMessage = @"
+The script was unable to contact the domain controller: $domain_controller.
+Error details:
+$($_.Exception.Message)
+"@
+    Send-MailMessage -SmtpServer smtp.company.com `
+                     -To pc_admins@company.com `
+                     -From no_reply@company.com `
+                     -Subject 'ERROR: .127 IP Address Report' `
+                     -Body $errorMessage
+}
