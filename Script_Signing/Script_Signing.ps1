@@ -16,7 +16,10 @@ This script performs the following operations:
 - Ensure that a valid code signing certificate is available in the CurrentUser\My certificate store.
 - Update the SMTP server and email addresses in the `$mailParams` section accordingly.
 - Requires appropriate permissions to modify files and access the certificate store.
-
+-If you're in an Active Directory domain and your company uses AD Certificate Services:
+    Open certmgr.msc or certreq on the domain-joined machine.
+    Request a new certificate for Code Signing from your internal CA.
+    The certificate will automatically be trusted on all domain-joined machines.
 #>
 
 
