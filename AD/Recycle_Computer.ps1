@@ -38,8 +38,8 @@ do {
 
         switch ($location) {
             'location1'     { $ADServ = 'DC01'; $valid = $true }
-            'location2'   { $ADServ = 'DC02'; $valid = $true }
-            'location3'{ $ADServ = 'DC03'; $valid = $true }
+            'location2'     { $ADServ = 'DC02'; $valid = $true }
+            'location3'     { $ADServ = 'DC03'; $valid = $true }
             'exit' {
                 Write-Host "Exiting script."
                 exit
