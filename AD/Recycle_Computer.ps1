@@ -4,7 +4,7 @@
 
 .DESCRIPTION
     This script allows you to select a location/domain controller and then perform one or more of the following cleanups:
-    - Search and optionally delete computers from Active Directory
+    - Search and optionally delete computers from Active Directory (with protection for critical machines)
     - Search for DHCP reservations by IP address, and optionally delete the reservation and lease
     - Search and optionally delete DNS A records associated with a computer name
 
@@ -26,7 +26,7 @@ Import-Module DnsServer
 
 do {
     Clear-Host
-    Write-Host '-------------PC Recycle------------'
+    Write-Host '----------PC Recycle Script----------'
 
     # Final Summary Log
     $Summary = @()
@@ -34,12 +34,12 @@ do {
 
     # Step 0: Select Location (Domain Controller)
     do {
-        $location = Read-Host -Prompt 'Which location (location1, location2, or location3)? Type "exit" to cancel'
+        $location = Read-Host -Prompt 'Which location (Cary, Oregon, or Princeton)? Type "exit" to cancel'
 
         switch ($location) {
-            'location1'     { $ADServ = 'location1DC'; $valid = $true }
-            'location2'   { $ADServ = 'location2DC'; $valid = $true }
-            'location3'{ $ADServ = 'location3DC'; $valid = $true }
+            'location1'     { $ADServ = 'DC01'; $valid = $true }
+            'location2'   { $ADServ = 'DC02'; $valid = $true }
+            'location3'{ $ADServ = 'DC03'; $valid = $true }
             'exit' {
                 Write-Host "Exiting script."
                 exit
@@ -60,6 +60,16 @@ do {
 
     # --- Step 1: AD Computer Lookup & Deletion ---
     if ($runAD -match '^(Y|y)$') {
+        # Define protected computers (exact names)
+        $protectedComputers = @(
+            'DC01',
+            'DC02',
+            'DC03',
+            'DB01',
+            'WS01',
+            'FS01'  # Add all PCs you want to protect here
+        )
+
         do {
             $pc_name = Read-Host "Enter the computer name"
 
@@ -71,6 +81,12 @@ do {
                 $pc | Format-Table Name, DNSHostName, OperatingSystem, LastLogonDate -AutoSize
 
                 foreach ($computer in $pc) {
+                    if ($protectedComputers -contains $computer.Name) {
+                        Write-Warning "The computer '$($computer.Name)' is protected and cannot be deleted."
+                        $Summary += "Attempted to delete protected computer '$($computer.Name)' - Skipped"
+                        continue
+                    }
+
                     $delete = Read-Host "`nDo you want to delete '$($computer.Name)' from Active Directory? (Y/N)"
                     if ($delete -match '^(Y|y)$') {
                         try {
@@ -124,7 +140,7 @@ do {
                         $Summary += "DHCP reservation and lease for IP $ipAddress deleted"
                     } else {
                         Write-Host "Skipped deletion." -ForegroundColor Cyan
-                        $Summary += "Skipped DHCP reservation and lease for IP $ipAddress"
+                        $Summary += "⏭Skipped DHCP reservation and lease for IP $ipAddress"
                     }
                     break
                 }
@@ -194,21 +210,3 @@ do {
     }
 
 } while ($repeat)
-
-
-<#
-@"
-⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣷⣬⡛⣿⣿⣿⣯⢻
-⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡟⢻⣿⣿⢟⣻⣿⣿⣿⣿⣿⣿⣮⡻⣿⣿⣧
-⣿⣿⣿⣿⣿⢻⣿⣿⣿⣿⣿⣿⣆⠻⡫⣢⠿⣿⣿⣿⣿⣿⣿⣿⣷⣜⢻⣿
-⣿⣿⡏⣿⣿⣨⣝⠿⣿⣿⣿⣿⣿⢕⠸⣛⣩⣥⣄⣩⢝⣛⡿⠿⣿⣿⣆⢝
-⣿⣿⢡⣸⣿⣏⣿⣿⣶⣯⣙⠫⢺⣿⣷⡈⣿⣿⣿⣿⡿⠿⢿⣟⣒⣋⣙⠊
-⣿⡏⡿⣛⣍⢿⣮⣿⣿⣿⣿⣿⣿⣿⣶⣶⣶⣶⣾⣿⣿⣿⣿⣿⣿⣿⣿⣿
-⣿⢱⣾⣿⣿⣿⣝⡮⡻⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡿⠿⠛⣋⣻⣿⣿⣿
-⢿⢸⣿⣿⣿⣿⣿⣿⣷⣽⣿⣿⣿⣿⣿⣿⣿⡕⣡⣴⣶⣿⣿⣿⡟⣿⣿⣿
-⣦⡸⣿⣿⣿⣿⣿⣿⡛⢿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⣿⡇⣿⣿⣿
-⢛⠷⡹⣿⠋⣉⣠⣤⣶⣶⣿⣿⣿⣿⣿⣿⡿⠿⢿⣿⣿⣿⣿⣿⣷⢹⣿⣿
-⣷⡝⣿⡞⣿⣿⣿⣿⣿⣿⣿⣿⡟⠋⠁⣠⣤⣤⣦⣽⣿⣿⣿⡿⠋⠘⣿⣿
-⣿⣿⡹⣿⡼⣿⣿⣿⣿⣿⣿⣿⣧⡰⣿⣿⣿⣿⣿⣹⡿⠟⠉⡀⠄⠄⢿⣿
-⣿⣿⣿⣽⣿⣼⣛⠿⠿⣿⣿⣿⣿⣿⣯⣿⠿⢟⣻⡽⢚⣤⡞⠄⠄⠄⢸⣿
-"@#>
