@@ -38,7 +38,7 @@ try {
             Send-MailMessage -SmtpServer smtp.company.com `
                              -To pc_admins@company.com `
                              -From no_reply@company.com `
-                             -Subject '.127 IP Address Report from AMWS03' `
+                             -Subject '.127 IP Address Report' `
                              -Body 'There are no .127 addresses in use.'
         }
         else {
