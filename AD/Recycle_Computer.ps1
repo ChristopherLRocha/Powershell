@@ -34,7 +34,7 @@ do {
 
     # Step 0: Select Location (Domain Controller)
     do {
-        $location = Read-Host -Prompt 'Which location (Cary, Oregon, or Princeton)? Type "exit" to cancel'
+        $location = Read-Host -Prompt 'Which location (location1, location2, location3)? Type "exit" to cancel'
 
         switch ($location) {
             'location1'     { $ADServ = 'DC01'; $valid = $true }
