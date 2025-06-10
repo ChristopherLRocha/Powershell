@@ -134,7 +134,7 @@ do {
                     $remove = Read-Host "`nDo you want to remove this reservation and its lease? (Y/N)"
                     if ($remove -match '^(Y|y)$') {
                         Remove-DhcpServerv4Reservation -ComputerName $ADServ -ScopeId $scope.ScopeId -ClientId $reservation.ClientId -Confirm:$false
-                        Remove-DhcpServerv4Lease -ComputerName $ADServ -ScopeId $scope.ScopeId -IPAddress $ipAddress -Confirm:$false
+                        Remove-DhcpServerv4Lease -ComputerName $ADServ -ScopeId $scope.ScopeId -ClientId $reservation.ClientId -Confirm:$false
 
                         Write-Host "Reservation and lease at IP $ipAddress deleted successfully." -ForegroundColor Yellow
                         $Summary += "DHCP reservation and lease for IP $ipAddress deleted"
