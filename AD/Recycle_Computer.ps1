@@ -26,7 +26,7 @@ Import-Module DnsServer
 
 do {
     Clear-Host
-    Write-Host '----------PC Recycle Script----------'
+    Write-Host '----------------PC Recycle--------------'
 
     # Final Summary Log
     $Summary = @()
@@ -34,12 +34,12 @@ do {
 
     # Step 0: Select Location (Domain Controller)
     do {
-        $location = Read-Host -Prompt 'Which location (location1, location2, location3)? Type "exit" to cancel'
+        $location = Read-Host -Prompt 'Which location (Location01, Location02, Location03)? Type "exit" to cancel'
 
         switch ($location) {
-            'location1'     { $ADServ = 'DC01'; $valid = $true }
-            'location2'     { $ADServ = 'DC02'; $valid = $true }
-            'location3'     { $ADServ = 'DC03'; $valid = $true }
+            'Location01'     { $ADServ = 'DC01'; $valid = $true }
+            'Location02'   { $ADServ = 'DC02'; $valid = $true }
+            'Location03'{ $ADServ = 'DC03'; $valid = $true }
             'exit' {
                 Write-Host "Exiting script."
                 exit
@@ -65,50 +65,46 @@ do {
             'DC01',
             'DC02',
             'DC03',
+            'FS01',
             'DB01',
-            'WS01',
-            'FS01'  # Add all PCs you want to protect here
+            'LM01'  # Add all PCs you want to protect here
         )
 
-        do {
-            $pc_name = Read-Host "Enter the computer name"
+        $pc_name = Read-Host "Enter the computer name"
 
-            $pc = Get-ADComputer -Server $ADServ -Filter "Name -like '*$pc_name*'" -Properties * |
-                  Select-Object Name, DistinguishedName, DNSHostName, OperatingSystem, LastLogonDate
+        $pc = Get-ADComputer -Server $ADServ -Filter "Name -like '*$pc_name*'" -Properties * |
+              Select-Object Name, DistinguishedName, DNSHostName, OperatingSystem, LastLogonDate
 
-            if ($pc) {
-                Write-Host "`nComputer(s) found:`n" -ForegroundColor Green
-                $pc | Format-Table Name, DNSHostName, OperatingSystem, LastLogonDate -AutoSize
+        if ($pc) {
+            Write-Host "`nComputer(s) found:`n" -ForegroundColor Green
+            $pc | Format-Table Name, DNSHostName, OperatingSystem, LastLogonDate -AutoSize
 
-                foreach ($computer in $pc) {
-                    if ($protectedComputers -contains $computer.Name) {
-                        Write-Warning "The computer '$($computer.Name)' is protected and cannot be deleted."
-                        $Summary += "Attempted to delete protected computer '$($computer.Name)' - Skipped"
-                        continue
-                    }
-
-                    $delete = Read-Host "`nDo you want to delete '$($computer.Name)' from Active Directory? (Y/N)"
-                    if ($delete -match '^(Y|y)$') {
-                        try {
-                            Remove-ADComputer -Server $ADServ -Identity $computer.DistinguishedName -Confirm:$false
-                            Write-Host "Computer '$($computer.Name)' deleted successfully." -ForegroundColor Yellow
-                            $Summary += "AD computer '$($computer.Name)' deleted"
-                        } catch {
-                            Write-Host "Error deleting '$($computer.Name)': $_" -ForegroundColor Red
-                            $Summary += "Failed to delete AD computer '$($computer.Name)': $_"
-                        }
-                    } else {
-                        Write-Host "Skipped deletion of '$($computer.Name)'." -ForegroundColor Cyan
-                        $Summary += "Skipped deletion of AD computer '$($computer.Name)'"
-                    }
+            foreach ($computer in $pc) {
+                if ($protectedComputers -contains $computer.Name) {
+                    Write-Warning "The computer '$($computer.Name)' is protected and cannot be deleted."
+                    $Summary += "Attempted to delete protected computer '$($computer.Name)' - Skipped"
+                    continue
                 }
-            } else {
-                Write-Host "`nNo computer found with the name '$pc_name'." -ForegroundColor Red
-                $Summary += "No AD computer found with name '$pc_name'"
-            }
 
-            $retry = Read-Host "`nDo you want to search for another PC? (Y/N)"
-        } while ($retry -match '^(Y|y)$')
+                $delete = Read-Host "`nDo you want to delete '$($computer.Name)' from Active Directory? (Y/N)"
+                if ($delete -match '^(Y|y)$') {
+                    try {
+                        Remove-ADComputer -Server $ADServ -Identity $computer.DistinguishedName -Confirm:$false
+                        Write-Host "Computer '$($computer.Name)' deleted successfully." -ForegroundColor Yellow
+                        $Summary += "AD computer '$($computer.Name)' deleted"
+                    } catch {
+                        Write-Host "Error deleting '$($computer.Name)': $_" -ForegroundColor Red
+                        $Summary += "Failed to delete AD computer '$($computer.Name)': $_"
+                    }
+                } else {
+                    Write-Host "Skipped deletion of '$($computer.Name)'." -ForegroundColor Cyan
+                    $Summary += "Skipped deletion of AD computer '$($computer.Name)'"
+                }
+            }
+        } else {
+            Write-Host "`nNo computer found with the name '$pc_name'." -ForegroundColor Red
+            $Summary += "No AD computer found with name '$pc_name'"
+        }
     } else {
         Write-Host "`nSkipping Active Directory computer cleanup." -ForegroundColor Gray
     }
@@ -140,7 +136,7 @@ do {
                         $Summary += "DHCP reservation and lease for IP $ipAddress deleted"
                     } else {
                         Write-Host "Skipped deletion." -ForegroundColor Cyan
-                        $Summary += "⏭Skipped DHCP reservation and lease for IP $ipAddress"
+                        $Summary += "Skipped DHCP reservation and lease for IP $ipAddress"
                     }
                     break
                 }
@@ -200,7 +196,7 @@ do {
     # --- Step 4: Final Summary Output ---
     Write-Host "`n--- Cleanup Summary ---" -ForegroundColor White
     $Summary | ForEach-Object { Write-Host $_ }
-    
+
     $repeatAnswer = Read-Host "`nDo you want to run the cleanup again? (Y/N)"
     if ($repeatAnswer -match '^(Y|y)$') {
         $repeat = $true

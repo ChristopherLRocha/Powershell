@@ -1,13 +1,13 @@
-﻿Get-Contact -Filter {Office -like '*China*'} | Export-Csv -Path C:\contactschina.csv
+﻿Get-Contact -Filter {Office -like '*Chicago*'} | Export-Csv -Path C:\contacts_chicago.csv
 
 ## Change company of users in csv
 
-$csvPath = 'C:\contactsChina.csv'
+$csvPath = 'C:\contacts_chicago.csv'
 $contacts = Import-Csv -Path $csvPath
 
 foreach ($contact in $contacts) {
     $displayName = $contact.DisplayName
-    $company = 'company - China'  # Replace with the new company information
+    $company = 'company - Chicago'  # Replace with the new company information
 
     # Update company information
     Set-Contact -Identity $displayName -Company $company
