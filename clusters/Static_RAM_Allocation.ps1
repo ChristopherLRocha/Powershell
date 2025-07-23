@@ -1,3 +1,16 @@
+<#
+.SYNOPSIS
+    Retrieves static memory allocations for all virtual machines in a remote failover cluster.
+
+.DESCRIPTION
+    This script connects to a specified failover cluster, identifies all virtual machines with dynamic memory disabled,
+    and displays their static memory allocation in a formatted table. It also calculates and displays the total static
+    memory allocated across all VMs in gigabytes.
+
+.NOTES
+    Requirements: Failover Clustering and Hyper-V PowerShell modules, appropriate permissions on the cluster.
+#>
+
 # Define the name of the remote cluster
 $ClusterName = "clustername"
 
