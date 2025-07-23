@@ -9,7 +9,7 @@
 #>
 
 # CONFIGURATION
-$LogPath = "C:\path\to\log.csv"
+$LogPath = "C:\log.csv"
 $InactiveDays = 90
 $CutoffDate = (Get-Date).AddDays(-$InactiveDays)
 $CheckWindowStart = (Get-Date).AddDays(-10)  # Max lookback for Get-MessageTrace
@@ -17,13 +17,13 @@ $CheckWindowStart = (Get-Date).AddDays(-10)  # Max lookback for Get-MessageTrace
 # Email config
 $smtpServer = "smtp.company.com"
 $smtpFrom = "noreply@company.com"
-$smtpTo = "pc_admins@company.com"
+$smtpTo = "user@company.com"
 $smtpSubject = "Inactive Distribution Groups (Past $InactiveDays Days)"
 
 # Connect to Exchange Online
-$AppId = "your_app_ID"
-$CertificateThumbprint = "your_certificate_thumbprint"
-$Organization = "tenant.onmicrosoft.com"
+$AppId = "your_app_id"
+$CertificateThumbprint = "your_thumb"
+$Organization = "yourorg"
 
 try {
     Connect-ExchangeOnline -AppId $AppId -CertificateThumbprint $CertificateThumbprint -Organization $Organization -ShowBanner:$false
@@ -50,8 +50,8 @@ Write-Host "Retrieved $($groups.Count) distribution groups from Exchange." -Fore
 $seenToday = @()
 foreach ($group in $groups) {
     Write-Host "Checking $($group.DisplayName)..."
-    $traces = Get-MessageTrace -StartDate $CheckWindowStart -EndDate (Get-Date) -RecipientAddress $group.PrimarySmtpAddress -PageSize 1
-
+    $traces = Get-MessageTracev2 -StartDate $CheckWindowStart -EndDate (Get-Date) -RecipientAddress $group.PrimarySmtpAddress
+    Start-Sleep -Seconds 5
     if ($traces.Count -gt 0) {
         $seenToday += [PSCustomObject]@{
             GroupName    = $group.DisplayName
@@ -86,6 +86,7 @@ $placeholderGroups = $groups | Where-Object {
 Write-Host "Added $($placeholderGroups.Count) placeholder group entries (no trace history yet)." -ForegroundColor Yellow
 
 # Final merge: update log with today's seen groups + placeholders
+# FIXED wrap in parentheses for correct '+' operator use
 $updatedLog = (@($activityLog | Where-Object {
     $_.EmailAddress.ToLower() -in $currentGroupEmails -and
     ($seenToday.EmailAddress -notcontains $_.EmailAddress)
@@ -103,6 +104,7 @@ $inactiveGroups = $groups | Where-Object {
         [datetime]$lastSeenDate = [datetime]::Parse($lastSeen)
         return $lastSeenDate -lt $CutoffDate
     } else {
+        # Never seen before
         return $true
     }
 } | ForEach-Object {
