@@ -36,22 +36,23 @@ The local or network path where attachments will be saved.
 $tenantId     = ''
 $clientId     = ''
 $clientSecret = ''
-$userEmail    = 'SID'
+$userEmail    = ''
 $folderName   = 'Inbox'
-$downloadPath = '\\location\'
+$downloadPath = ''
 
-# Authenticate with Azure
+# ==== AUTH ====
 $body = @{
     client_id     = $clientId
     scope         = 'https://graph.microsoft.com/.default'
     client_secret = $clientSecret
     grant_type    = 'client_credentials'
 }
+
 $tokenResponse = Invoke-RestMethod -Method Post -Uri "https://login.microsoftonline.com/$tenantId/oauth2/v2.0/token" -Body $body
 $accessToken = $tokenResponse.access_token
 $headers = @{ Authorization = "Bearer $accessToken" }
 
-# Get folder ID
+# ==== GET FOLDER ID ====
 $folderUrl = "https://graph.microsoft.com/v1.0/users/$userEmail/mailFolders"
 $folders = Invoke-RestMethod -Uri $folderUrl -Headers $headers
 $folderId = ($folders.value | Where-Object { $_.displayName -eq $folderName }).id
@@ -61,59 +62,121 @@ if (-not $folderId) {
     exit
 }
 
-# Get unread emails with attachments
+# ==== GET UNREAD EMAILS WITH ATTACHMENTS ====
 $messagesUrl = "https://graph.microsoft.com/v1.0/users/$userEmail/mailFolders/$folderId/messages?`$filter=isRead eq false and hasAttachments eq true&`$top=25"
 $messages = Invoke-RestMethod -Uri $messagesUrl -Headers $headers
 
 foreach ($message in $messages.value) {
     $messageId = $message.id
     $subject = $message.subject
-    Write-Output "Processing: $subject"
-
+    Write-Output "`n📧 Processing: $subject"
+    
     $fileSaved = $false
-
-    # get attachments
-    $attachmentsUrl = "https://graph.microsoft.com/v1.0/users/$userEmail/messages/$messageId/attachments"
-    $attachments = Invoke-RestMethod -Uri $attachmentsUrl -Headers $headers
-
-    foreach ($att in $attachments.value) {
-        if ($att.'@odata.type' -eq "#microsoft.graph.fileAttachment") {
-            $filename = $att.name.ToLower()
-
-            if ($filename -like '*.pdf' -or $filename -like '*.docx' -or $filename -like '*.xls' -or $filename -like '*.xlsx') {
-                # Prepare filename and avoid overwrite
-                $baseName = [System.IO.Path]::GetFileNameWithoutExtension($att.name)
-                $ext = [System.IO.Path]::GetExtension($att.name)
-                $newFilename = "$baseName$ext"
-                $fullPath = Join-Path $downloadPath $newFilename
-
-                $counter = 1
-                while (Test-Path $fullPath) {
-                    $newFilename = "${baseName}_$counter$ext"
+    $attachmentCount = 0
+    $savedCount = 0
+    
+    try {
+        # ==== GET ATTACHMENTS WITH RETRY LOGIC ====
+        $attachmentsUrl = "https://graph.microsoft.com/v1.0/users/$userEmail/messages/$messageId/attachments"
+        $maxRetries = 3
+        $retryCount = 0
+        $attachments = $null
+        
+        do {
+            try {
+                $attachments = Invoke-RestMethod -Uri $attachmentsUrl -Headers $headers
+                break
+            } catch {
+                $retryCount++
+                Write-Output "Retry $retryCount/$maxRetries for getting attachments: $($_.Exception.Message)"
+                if ($retryCount -lt $maxRetries) {
+                    Start-Sleep -Seconds (2 * $retryCount)  # Exponential backoff
+                } else {
+                    throw
+                }
+            }
+        } while ($retryCount -lt $maxRetries)
+        
+        $attachmentCount = $attachments.value.Count
+        Write-Output "📎 Found $attachmentCount attachment(s)"
+        
+        foreach ($att in $attachments.value) {
+            Write-Output "  Processing attachment: $($att.name) (Type: $($att.'@odata.type'))"
+            
+            # Handle both file attachments and item attachments
+            if ($att.'@odata.type' -eq "#microsoft.graph.fileAttachment") {
+                $filename = $att.name.ToLower()
+                
+                if ($filename -like '*.pdf' -or $filename -like '*.docx' -or $filename -like '*.doc' -or 
+                    $filename -like '*.xls' -or $filename -like '*.xlsx' -or $filename -like '*.xlsm') {
+                    
+                    # Prepare filename and avoid overwrite
+                    $baseName = [System.IO.Path]::GetFileNameWithoutExtension($att.name)
+                    $ext = [System.IO.Path]::GetExtension($att.name)
+                    $newFilename = "$baseName$ext"
                     $fullPath = Join-Path $downloadPath $newFilename
-                    $counter++
+                    $counter = 1
+                    
+                    while (Test-Path $fullPath) {
+                        $newFilename = "${baseName}_$counter$ext"
+                        $fullPath = Join-Path $downloadPath $newFilename
+                        $counter++
+                    }
+                    
+                    try {
+                        # Validate base64 content exists
+                        if (-not $att.contentBytes) {
+                            Write-Output "No content bytes for $($att.name)"
+                            continue
+                        }
+                        
+                        $bytes = [System.Convert]::FromBase64String($att.contentBytes)
+                        
+                        # Validate file size
+                        if ($bytes.Length -eq 0) {
+                            Write-Output "Empty file content for $($att.name)"
+                            continue
+                        }
+                        
+                        [IO.File]::WriteAllBytes($fullPath, $bytes)
+                        $fileSaved = $true
+                        $savedCount++
+                        Write-Output "Saved: $newFilename (Size: $($bytes.Length) bytes)"
+                        
+                        # Add small delay between downloads to avoid rate limiting
+                        Start-Sleep -Milliseconds 100
+                        
+                    } catch {
+                        Write-Output "Failed to save $($att.name) - $($_.Exception.Message)"
+                        Write-Output "   Error details: $($_.Exception.GetType().Name)"
+                    }
+                } else {
+                    Write-Output "Skipped unsupported file: $($att.name)"
                 }
-
-                try {
-                    $bytes = [System.Convert]::FromBase64String($att.contentBytes)
-                    [IO.File]::WriteAllBytes($fullPath, $bytes)
-                    $fileSaved = $true
-                    Write-Output "Saved: $newFilename"
-                } catch {
-                    Write-Output "Failed to save $newFilename - $($_.Exception.Message)"
-                }
+            } elseif ($att.'@odata.type' -eq "#microsoft.graph.itemAttachment") {
+                Write-Output "Item attachment found: $($att.name) - requires separate handling"
             } else {
-                Write-Output "Skipped unsupported file: $($att.name)"
+                Write-Output "Unsupported attachment type: $($att.'@odata.type')"
             }
         }
+        
+    } catch {
+        Write-Output "❌ Error processing attachments for message '$subject': $($_.Exception.Message)"
+        continue
     }
-
-    # Mark email as read if it had an attachment that was downloaded
+    
+    # ==== MARK EMAIL AS READ ONLY IF FILES WERE SAVED ====
+    Write-Output "Summary: $savedCount/$attachmentCount attachments saved"
+    
     if ($fileSaved) {
-        $markReadUrl = "https://graph.microsoft.com/v1.0/users/$userEmail/messages/$messageId"
-        $body = @{ isRead = $true } | ConvertTo-Json
-        Invoke-RestMethod -Method Patch -Uri $markReadUrl -Headers $headers -Body $body -ContentType "application/json"
-        Write-Output "Marked as read"
+        try {
+            $markReadUrl = "https://graph.microsoft.com/v1.0/users/$userEmail/messages/$messageId"
+            $body = @{ isRead = $true } | ConvertTo-Json
+            Invoke-RestMethod -Method Patch -Uri $markReadUrl -Headers $headers -Body $body -ContentType "application/json"
+            Write-Output "Marked as read"
+        } catch {
+            Write-Output "Failed to mark email as read: $($_.Exception.Message)"
+        }
     } else {
         Write-Output "No valid attachments saved. Email left unread."
     }
