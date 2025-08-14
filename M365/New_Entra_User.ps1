@@ -103,7 +103,7 @@ function New-EntraUser {
         [string]$LastName,
         [string]$Location,
         [string]$License,
-        [string]$Password,
+        [SecureString]$Password,
         [string]$Domain
     )
     
