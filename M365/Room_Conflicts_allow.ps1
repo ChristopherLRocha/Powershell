@@ -32,4 +32,8 @@ foreach ($room in $rooms) {
         -ConflictPercentageAllowed 20 `
         -MaximumConflictInstances 3 `
         -AddOrganizerToSubject $true `
-        -DeleteComments $
+        -DeleteComments $false `
+        -DeleteSubject $false
+}
+
+Write-Host "All room mailboxes updated successfully."
