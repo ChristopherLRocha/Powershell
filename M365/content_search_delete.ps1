@@ -1,22 +1,52 @@
-﻿##Log into https://compliance.microsoft.com/
+﻿
+# Ensure the Exchange Online Management module is installed
+#if (-not (Get-Module -ListAvailable -Name ExchangeOnlineManagement)) {
+#    Install-Module -Name ExchangeOnlineManagement -Scope CurrentUser -Force
+#}
 
-##Under Solutions on the left-hand navigation menu, go to Content Search
+# Import the module
+#Import-Module ExchangeOnlineManagement
 
-##Create a new search, specify to search in All Exchange mailboxes (or specific users), enter your search criteria (address the bad email was sent from, keywords in the subject of the bad email, date range, etc.)
+# Check if running in a GUI-capable environment
+# $guiCapable = $Host.Name -eq 'ConsoleHost' -or $Host.Name -eq 'Windows PowerShell ISE Host'
 
-##Save & Run the search (give it an appropriate name such as "bad email purge"), preview results to make sure it returns the emails you want to purge
+# Use appropriate connection method
+#if ($guiCapable) {
+    # Write-Host "Using standard authentication (GUI popup)..."
+    Connect-IPPSSession
+#} else {
+#    Write-Host "Using device code authentication (no popup)..."
+#    Connect-IPPSSession -UseDeviceAuthentication
+#}
 
-##Fire up Windows Powershell (see here if you haven’t installed the Exchange Online component before: https://docs.microsoft.com/en-us/powershell/exchange/office-365-scc/connect-to-scc-powershell/mfa-connect-to-scc-powershell?view=exchange-ps )
+# Define the subject to search for
+$subject = "RE: JLR cyberattack uninsured"
 
-##Run the command and sign in as an account with global/exchange online admin rights:
+# Create a Compliance Search
+$searchName = "JLR cyberattack uninsured test"
+New-ComplianceSearch -Name $searchName -ExchangeLocation all -ContentMatchQuery "subject:`"$subject`""
 
-Connect-IPPSSession
+# Start the Compliance Search
+Start-ComplianceSearch -Identity $searchName
 
-##Run the command: 
+# Wait for the search to complete
+do {
+    $status = (Get-ComplianceSearch -Identity $searchName).Status
+    Start-Sleep -Seconds 10
+} while ($status -ne "Completed")
 
-New-ComplianceSearchAction -SearchName "(search name from step 4)" -Purge -PurgeType HardDelete
+# Check results
+New-ComplianceSearchAction -SearchName $searchName -Preview
 
-##The emails are removed from the specified mailboxes permanently
+Get-ComplianceSearchAction -SearchName $searchName
 
-##check the status of the purge
- Get-ComplianceSearchAction -identity “(search name)_purge”
+
+
+Get-ComplianceSearch -Identity $searchName | Format-List Name,Status,ItemsFound
+
+
+# Purge the messages found by the search
+New-ComplianceSearchAction -SearchName $searchName -Purge -PurgeType SoftDelete
+
+# Verify the action
+Get-ComplianceSearchAction -SearchName $searchName
